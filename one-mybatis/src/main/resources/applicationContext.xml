@@ -40,6 +40,21 @@
 		      <value>classpath*:mapper/**/*Mapper.xml</value>
 		    </array>
 		</property>
+<!-- 		<property name="plugins"> -->
+<!--             <array> -->
+<!--                 分页插件配置 -->
+<!--                 <bean id="paginationInterceptor" class="com.baomidou.mybatisplus.plugins.PaginationInterceptor"> -->
+<!--                     <property name="dialectType" value="oracle"/> -->
+<!--                 </bean> -->
+<!--                 <bean id="performanceInterceptor" -->
+<!--                     class="com.baomidou.mybatisplus.plugins.PerformanceInterceptor" > -->
+<!--                     超过自动停止运行，有助于发现问题。 -->
+<!--                     <property name="maxTime" value="100" /> -->
+<!--                     SQL是否格式化 默认false -->
+<!--                     <property name="format" value="true" />  -->
+<!--                 </bean> -->
+<!--             </array> -->
+<!--         </property> -->
 	</bean>    
    	<bean id="MapperScannerConfigurer" class="org.mybatis.spring.mapper.MapperScannerConfigurer">  
         <!-- 这里的basePackage 指定了dao层接口路径，这里的dao接口不用自己实现 -->  
