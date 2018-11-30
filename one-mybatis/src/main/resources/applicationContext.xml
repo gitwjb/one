@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:jee="http://www.springframework.org/schema/jee"
+	xmlns:tx="http://www.springframework.org/schema/tx" xmlns:jpa="http://www.springframework.org/schema/data/jpa"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+        http://www.springframework.org/schema/mvc
+        http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.1.xsd
+        http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-3.1.xsd
+        http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee-3.1.xsd
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.1.xsd
+        http://www.springframework.org/schema/data/jpa http://www.springframework.org/schema/data/jpa/spring-jpa.xsd"
+	default-lazy-init="false">
+
+	<description>Spring公共配置 </description>
+	<context:property-placeholder location="classpath:other.properties" />
+
+	<!-- 使用annotation 自动注册bean, 并保证@Required、@Autowired的属性被注入 -->
+	<context:component-scan
+		base-package="com.wjb.one.mybatis">
+		<context:exclude-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+ 
+     
+    <!-- mybatis spring sqlSessionTemplate,使用时直接让spring注入即可 -->
+    <bean id="sqlSessionTemplate" class="org.mybatis.spring.SqlSessionTemplate">
+        <constructor-arg index="0" ref="sqlSessionFactory"></constructor-arg>
+    </bean> 
+       
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="multipleDataSource" />
+        <property name="configLocation"  value="classpath:sqlMapConfig.xml"/>
+        <property name="mapperLocations">
+		    <array>
+		      <value>classpath*:mapper/**/*Mapper.xml</value>
+		    </array>
+		</property>
+	</bean>    
+   	<bean id="MapperScannerConfigurer" class="org.mybatis.spring.mapper.MapperScannerConfigurer">  
+        <!-- 这里的basePackage 指定了dao层接口路径，这里的dao接口不用自己实现 -->  
+        <property name="basePackage" value="com.wjb.one.*.dao" />  
+        <!-- 如果只有一个数据源的话可以不用指定，但是如果有多个数据源的话必须要指定 -->  
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory" />  
+        <!--直接指定了sqlsessionTemplate名称，这个和上面的其实是一样的 -->  
+        <!-- <property name="sqlSessionTemplateBeanName" value="sqlSession" /> -->  
+    </bean> 
+
+	<!-- (事务管理)transaction manager, use JtaTransactionManager for global tx -->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="multipleDataSource" />
+    </bean>  
+    
+ 	<!--  -->
+	<bean id="multipleDataSource" class="com.wjb.one.mybatis.datasource.MultipleDataSource">
+        <property name="defaultTargetDataSource" ref="testDataSource"/>
+        <property name="targetDataSources">
+            <map>
+                <entry key="testDataSource" value-ref="testDataSource"/>
+                <entry key="dataSource" value-ref="dataSource" />
+            </map>
+        </property>
+    </bean>
+	
+	<!-- 正式库 -->
+	<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource" destroy-method="close">  
+		<!-- 基本属性 url、user、password -->
+		<property name="name" value="dataSource"/>
+		<property name="driverClassName" value="${database.master.driverClassName}" />
+		<property name="url" value="${database.master.url}" />
+		<property name="username" value="${database.master.user}" />
+		<property name="password" value="${database.master.passsword}" />
+ 
+		<!-- 配置初始化大小、最小、最大 -->
+		<property name="initialSize" value="${jdbc.initialSize}" />
+		<property name="minIdle" value="${jdbc.minIdle}" />
+		<property name="maxActive" value="${jdbc.maxActive}" />
+		<!-- 配置获取连接等待超时的时间 -->
+		<property name="maxWait" value="${jdbc.maxWait}" />
+		<!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+		<property name="timeBetweenEvictionRunsMillis" value="${jdbc.timeBetweenEvictionRunsMillis}" />
+		<!-- 配置一个连接在池中最小生存的时间，单位是毫秒 -->
+		<property name="minEvictableIdleTimeMillis" value="${jdbc.minEvictableIdleTimeMillis}" />
+ 
+<!-- 		<property name="validationQuery" value="${jdbc.validationQuery}" /> -->
+		<property name="testWhileIdle" value="${jdbc.testWhileIdle}" />
+		<property name="testOnBorrow" value="${jdbc.testOnBorrow}" />
+		<property name="testOnReturn" value="${jdbc.testOnReturn}" />
+ 
+		<!-- 是否缓存preparedStatement，也就是PSCache。PSCache对支持游标的数据库性能提升巨大，比如说oracle。在mysql下建议关闭。 
+			如果用Oracle，则把poolPreparedStatements配置为true，mysql可以配置为false。分库分表较多的数据库，建议配置为false。 -->
+		<property name="poolPreparedStatements" value="${jdbc.poolPreparedStatements}" />
+		<!-- 要启用PSCache，必须配置大于0，当大于0时，poolPreparedStatements自动触发修改为true。在Druid中，不会存在Oracle下PSCache占用内存过多的问题，可以把这个数值配置大一些，比如说100 -->
+		<property name="maxPoolPreparedStatementPerConnectionSize"
+			value="${jdbc.maxPoolPreparedStatementPerConnectionSize}" />
+ 
+		<!-- 配置监控统计拦截的filters mergeStat 将相同的sql语句合并成一条 -->
+		<property name="filters" value="${jdbc.filters}" />
+		<property name="proxyFilters">
+	        <list>
+	            <ref bean="stat-filter" />
+	        </list>
+	    </property>
+	    
+		<!-- 缺省多个DruidDataSource的监控数据是各自独立的，在Druid-0.2.17版本之后，支持配置公用监控数据，配置参数为useGloalDataSourceStat -->
+		<property name="useGlobalDataSourceStat" value="true" />
+ 
+		<!-- 配置removeAbandoned对性能会有一些影响，建议怀疑存在泄漏之后再打开。在上面的配置中，如果连接超过30分钟未关闭，就会被强行回收，并且日志记录连接申请时的调用堆栈。 -->
+		<!-- 打开removeAbandoned功能 -->
+		<property name="removeAbandoned" value="${jdbc.removeAbandoned}" />
+		<!-- 1800秒，也就是30分钟 -->
+		<property name="removeAbandonedTimeout" value="${jdbc.removeAbandonedTimeout}" />
+		<!-- 关闭abanded连接时输出错误日志 -->
+		<property name="logAbandoned" value="${jdbc.logAbandoned}" />
+	</bean>  
+    
+    <!-- 测试库 -->
+	<bean id="testDataSource" class="com.alibaba.druid.pool.DruidDataSource" destroy-method="close">  
+		<!-- 基本属性 url、user、password -->
+		<property name="name" value="testDataSource"/>
+		<property name="driverClassName" value="${database.secondby.driverClassName}" />
+		<property name="url" value="${database.secondby.url}" />
+		<property name="username" value="${database.secondby.user}" />
+		<property name="password" value="${database.secondby.passsword}" />
+ 
+		<!-- 配置初始化大小、最小、最大 -->
+		<property name="initialSize" value="0" />
+		<property name="minIdle" value="0" />
+		<property name="maxActive" value="20" />
+		<!-- 配置获取连接等待超时的时间 -->
+		<property name="maxWait" value="60000" />
+		<!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+		<property name="timeBetweenEvictionRunsMillis" value="60000" />
+		<!-- 配置一个连接在池中最小生存的时间，单位是毫秒 -->
+		<property name="minEvictableIdleTimeMillis" value="25200000" />
+ 
+<!-- 		<property name="validationQuery" value="${jdbc.validationQuery}" /> -->
+		<property name="testWhileIdle" value="true" />
+		<property name="testOnBorrow" value="false" />
+		<property name="testOnReturn" value="false" />
+ 
+		<!-- 是否缓存preparedStatement，也就是PSCache。PSCache对支持游标的数据库性能提升巨大，比如说oracle。在mysql下建议关闭。 
+			如果用Oracle，则把poolPreparedStatements配置为true，mysql可以配置为false。分库分表较多的数据库，建议配置为false。 -->
+		<property name="poolPreparedStatements" value="false" />
+		<!-- 要启用PSCache，必须配置大于0，当大于0时，poolPreparedStatements自动触发修改为true。在Druid中，不会存在Oracle下PSCache占用内存过多的问题，可以把这个数值配置大一些，比如说100 -->
+		<property name="maxPoolPreparedStatementPerConnectionSize"
+			value="0" />
+	    
+		<!-- 缺省多个DruidDataSource的监控数据是各自独立的，在Druid-0.2.17版本之后，支持配置公用监控数据，配置参数为useGloalDataSourceStat -->
+		<property name="useGlobalDataSourceStat" value="true" />
+ 
+		<!-- 配置removeAbandoned对性能会有一些影响，建议怀疑存在泄漏之后再打开。在上面的配置中，如果连接超过30分钟未关闭，就会被强行回收，并且日志记录连接申请时的调用堆栈。 -->
+		<!-- 打开removeAbandoned功能 -->
+		<property name="removeAbandoned" value="false" />
+		<!-- 1800秒，也就是30分钟 -->
+		<property name="removeAbandonedTimeout" value="1800" />
+		<!-- 关闭abanded连接时输出错误日志 -->
+		<property name="logAbandoned" value="false" />
+	</bean>  
+	
+	<bean id="stat-filter" class="com.alibaba.druid.filter.stat.StatFilter">  
+	    <property name="slowSqlMillis" value="10000" />  
+	    <property name="logSlowSql" value="true" />  
+	</bean> 
+</beans>
